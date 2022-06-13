@@ -452,6 +452,13 @@ void Assemble::outputAndAfterTreatment(const unsigned k, FILE **readFP, BruijnGr
 		outputFilename += "_contigBubble.fa";
 		platanus::printContigBubbleInterleaved(outputFilename, contigFP, 1.0, averageLength, k, false);
 		fclose(contigFP);
+
+		contigFP = platanus::makeTemporaryFile();
+		graph.saveCrossCenterAsContig(contigFP, averageLength / (averageLength - k + 1.0));
+		outputFilename = optionSingleArgs["-o"];
+		outputFilename += "_crossCenter.fa";
+		platanus::printContig(outputFilename, contigFP, 1.0, averageLength, k, "center");
+		fclose(contigFP);
 	}
 	else {
 		averageCoverage = averageCoverage * (averageLength - k + 1.0) / averageLength;
