@@ -5095,7 +5095,7 @@ void PairedDBG::divideNodeBasedOnBubblesIterative(const bool strandFlag, const l
 	long num;
 
 	cerr << endl << "dividing nodes based on bubbles ..." << endl;
-//	do {
+	do {
 		num = divideNodeUsingBubbleContigPair(numThread);
 		num += divideInconsistentBubbleEnd();
 		if (strandFlag)
@@ -5103,7 +5103,7 @@ void PairedDBG::divideNodeBasedOnBubblesIterative(const bool strandFlag, const l
 
 		total += num;
 		cerr << "NUM_DIVISION = " << num << endl;
-//	} while (num > 0);
+	} while (num > 0);
 
 	cerr << "TOTAL_NUM_DIVISIONS =" << total << endl << endl;
 	setMode(currentMode);
