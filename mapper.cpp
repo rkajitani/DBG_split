@@ -976,7 +976,7 @@ void Mapper::mapAnchorBubbleMT(platanus::Contig &anchorContig, vector<platanus::
             if (position1.id == 0)
 				continue;
 
-            platanus::Position position2 = this->mapReadUngapAlignment(bubble2, MIN_IDENTITY_FOR_SCAFFOLD, positionBuffer, &identity);
+            platanus::Position position2 = this->mapReadUngapAlignment(bubble2, MIN_IDENTITY, positionBuffer, &identity);
             if (position2.id == 0)
 				continue;
 
@@ -997,7 +997,7 @@ void Mapper::mapAnchorBubbleMT(platanus::Contig &anchorContig, vector<platanus::
 			}
 
 			anchorMap[j + 1].id = position2.id;
-			anchorMap[j + 1].value = j + 1;
+			anchorMap[j].value = j + 1;
 			if (position2.id > 0) {
 				anchorMap[j + 1].start = position2.offset;
 				anchorMap[j + 1].end = position2.offset + bubble2.length;
