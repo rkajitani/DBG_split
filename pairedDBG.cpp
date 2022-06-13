@@ -5095,7 +5095,7 @@ void PairedDBG::divideNodeBasedOnBubblesIterative(const bool strandFlag, const l
 	long num;
 
 	cerr << endl << "dividing nodes based on bubbles ..." << endl;
-	do {
+//	do {
 		num = divideNodeUsingBubbleContigPair(numThread);
 		num += divideInconsistentBubbleEnd();
 		if (strandFlag)
@@ -5103,7 +5103,7 @@ void PairedDBG::divideNodeBasedOnBubblesIterative(const bool strandFlag, const l
 
 		total += num;
 		cerr << "NUM_DIVISION = " << num << endl;
-	} while (num > 0);
+//	} while (num > 0);
 
 	cerr << "TOTAL_NUM_DIVISIONS =" << total << endl << endl;
 	setMode(currentMode);
@@ -7635,11 +7635,11 @@ void PairedDBG::reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const p
 			std::stable_sort(curNode.contig.begin(), curNode.contig.end());
 			long preEnd = 0;
 			vector<ScaffoldPart> tmpContig = curNode.contig;
-			tmpContig.emplace_back(0, rawContig.seq.back().length, rawContig.seq.back().length);
+			tmpContig.emplace_back(0, rawContig.seq[i].length, rawContig.seq[i].length);
 			for (long j = 0; j < tmpContig.size(); ++j) {
 				long start = std::max(preEnd - k + 1, 0L);
-				long end = std::min(curNode.contig[j].start + k - 1, rawContig.seq[i].length);
-				if (end - start  < k) {
+				long end = std::min(tmpContig[j].start + k - 1, rawContig.seq[i].length);
+				if (end - start < k) {
 					preEnd = tmpContig[j].end;
 					continue;
 				}
