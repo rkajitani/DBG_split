@@ -644,7 +644,7 @@ platanus::Position Mapper::mapReadUngapAlignment(const platanus::SEQ &read, cons
 					continue;
 
 				alignmentStart = -std::min(i, target.length - seedPosition.offset - keyLength);
-				alignmentEnd = std::min(read.length - i , static_cast<long>(seedPosition.offset));
+				alignmentEnd = std::min(read.length - i, static_cast<long>(seedPosition.offset + seedLength));
 				misThreshold = static_cast<long>((1.0 - minIdentity) * (alignmentEnd - alignmentStart));
 
 				for (k = alignmentStart; k < 0; ++k) {
@@ -784,7 +784,6 @@ void Mapper::mapReadUngapAlignmentMulti(const platanus::SEQ &read, const double 
 
 				auto itr = maxScorePositionBuffer.begin();
 				for (; itr != maxScorePositionBuffer.end(); ++itr) {
-					if (seedPosition.id == itr->id && seedPosition.offset - i == itr->offset)
 					if (seedPosition.id == itr->id && seedPosition.offset + i + keyLength - 1 == itr->offset)
 						break;
 				}
@@ -802,7 +801,7 @@ void Mapper::mapReadUngapAlignmentMulti(const platanus::SEQ &read, const double 
 					continue;
 
 				alignmentStart = -std::min(i, target.length - seedPosition.offset - keyLength);
-				alignmentEnd = std::min(read.length - i , static_cast<long>(seedPosition.offset));
+				alignmentEnd = std::min(read.length - i, static_cast<long>(seedPosition.offset + seedLength));
 				misThreshold = static_cast<long>((1.0 - minIdentity) * (alignmentEnd - alignmentStart));
 
 				for (k = alignmentStart; k < 0; ++k) {

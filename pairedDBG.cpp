@@ -2366,7 +2366,8 @@ void PairedDBG::loadResultSeqSimple(const long minSeqLength, const unsigned long
             if (contigPositionInScaffold[id2Index(node[nodeIndex].contig[contigID].id)].id != 0)
                 break;
         }
-        if (contigID == node[nodeIndex].numContig) continue;
+        if (contigID == node[nodeIndex].numContig)
+			continue;
 
         scaffoldLength = 0;
 		leftCut[0] = 0;
@@ -3498,14 +3499,14 @@ pair<long, long> PairedDBG::fillMajorityIDRunConvergenceAware(vector<std::array<
 			
 		if (IDs[i][0] * IDs[i][1] != 0 && IDs[i][0] == IDs[i][1]) {
 			if (IDs[i][0] == maxID)
-				score -= 2 * this->node[id2Index(IDs[i][0])].length;
+				score -= 2;
 			else
-				score += 2 * this->node[id2Index(IDs[i][0])].length * scoreFactor;
+				score += 2;
 		}
 		else {
 			for (long j = 0; j < 2; ++j) {
 				if (IDs[i][j] == maxID)
-					score -= this->node[id2Index(IDs[i][j])].length;
+					score -= 1;
 			}
 		}
 	}
@@ -3519,14 +3520,14 @@ pair<long, long> PairedDBG::fillMajorityIDRunConvergenceAware(vector<std::array<
 			
 		if (IDs[i][0] * IDs[i][1] != 0 && IDs[i][0] == IDs[i][1]) {
 			if (IDs[i][0] == maxID)
-				score -= 2 * this->node[id2Index(IDs[i][0])].length;
+				score -= 2;
 			else
-				score += 2 * this->node[id2Index(IDs[i][0])].length * scoreFactor;
+				score += 2;
 		}
 		else {
 			for (long j = 0; j < 2; ++j) {
 				if (IDs[i][j] == maxID)
-					score -= this->node[id2Index(IDs[i][j])].length;
+					score -= 1;
 			}
 		}
 	}
@@ -5130,7 +5131,7 @@ void PairedDBG::divideNodeBasedOnBubblesIterative(const bool strandFlag, const l
 	long num;
 
 	cerr << endl << "dividing nodes based on bubbles ..." << endl;
-	do {
+//	do {
 		num = divideNodeUsingBubbleContigPair(numThread);
 		num += divideInconsistentBubbleEnd();
 		if (strandFlag)
@@ -5138,7 +5139,7 @@ void PairedDBG::divideNodeBasedOnBubblesIterative(const bool strandFlag, const l
 
 		total += num;
 		cerr << "NUM_DIVISION = " << num << endl;
-	} while (num > 0);
+//	} while (num > 0);
 
 	cerr << "TOTAL_NUM_DIVISIONS =" << total << endl << endl;
 	setMode(currentMode);
@@ -6582,13 +6583,6 @@ void PairedDBG::setOppositeBubbleContigIDByOneEndMatch()
 				contigBubbleInfo[-(mapItr->second)[j] - 1].oppositeContigID[1] = -(mapItr->second)[(j + 1)%2];
 		}
 	}
-
-/*
-	for (unsigned long i = 0; i < this->node.size(); ++i) {
-		std::cout << contigName[i] <<  '\t' << contigBubbleInfo[i].oppositeContigID[0] <<  '\t' << contigBubbleInfo[i].oppositeContigID[1] << endl;
-	}
-	exit(0);
-*/
 }
 
 long PairedDBG::getScoreFromIDPair(long leftNodeID, long rightNodeID)
@@ -7655,7 +7649,7 @@ void PairedDBG::reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const p
 	for (long i = 0; i < anchorHomoMap.size(); ++i) {
 		if (anchorHomoMap[i].id != 0) {
 			this->node[id2Index(anchorHomoMap[i].id)].contig.emplace_back(
-				sign(anchorHomoMap[i].id) * (i + 1),
+				sign(anchorHomoMap[i].id) * (anchorBubble.numSeq + i + 1),
 				anchorHomoMap[i].start,
 				anchorHomoMap[i].end
 			);
