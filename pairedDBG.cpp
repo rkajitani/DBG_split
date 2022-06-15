@@ -63,6 +63,8 @@ const double PairedDBG::NON_PAIRED_END_TOLERENCE_FACTOR = 0.1;
 const double PairedDBG::HETERO_COVERAGE_THRESHOLD_FACTOR = 1.75;
 const double PairedDBG::HETERO_COVERAGE_THRESHOLD_FACTOR_LOW = 0.25;
 const double PairedDBG::HETERO_FORK_COVERAGE_THRESHOLD_FACTOR = 1.25;
+const double PairedDBG::HOMO_COVERAGE_THRESHOLD_FACTOR = 3.0;
+const double PairedDBG::HOMO_COVERAGE_THRESHOLD_FACTOR_LOW = 1.0;
 const double PairedDBG::CROSS_LINK_RATE_THRESHOLD = 0.25;
 const double PairedDBG::CROSS_SCORE_RATE_THRESHOLD = 0.5;
 const double PairedDBG::MIN_BUBBLE_COUNT_FACTOR = 10000.0;
@@ -1148,7 +1150,7 @@ void PairedDBG::calculateHeteroCoverage(const vector<long> &bubbleNodeIndex)
 }
 
 
-void PairedDBG::calculateHeteroCoverageContig(const platanus::Contig &contig)
+void PairedDBG::calculateHeteroCoverageContig(const platanus::Contig &contig, const bool homoFlag)
 {
 	const double TRUNCATION_FACTOR = 2.0;
 
@@ -1183,10 +1185,15 @@ void PairedDBG::calculateHeteroCoverageContig(const platanus::Contig &contig)
 	}
 	this->averageCoverage = 2.0 * this->heteroCoverage;
 
+	if (homoFlag) {
+		this->heteroCoverage /= 2.0;
+		this->averageCoverage /= 2.0;
+	}
+
 	cerr << "ESTIMATED_HETERO_COVERAGE = "<< this->heteroCoverage << endl;
 }
 
-void PairedDBG::filterAnchorContig(platanus::Contig &contig, platanus::Contig &newContig)
+void PairedDBG::filterAnchorBubble(platanus::Contig &contig, platanus::Contig &newContig)
 {
 	const double MAX_HETERO_COVERAGE = HETERO_COVERAGE_THRESHOLD_FACTOR * this->heteroCoverage;
 	const double MIN_HETERO_COVERAGE = HETERO_COVERAGE_THRESHOLD_FACTOR_LOW * this->heteroCoverage;
@@ -1211,6 +1218,34 @@ void PairedDBG::filterAnchorContig(platanus::Contig &contig, platanus::Contig &n
 			}
 
 			numSeq += 2;
+		}
+	}
+
+	newContig.numSeq = numSeq;
+	newContig.seq.resize(numSeq);
+	newContig.coverage.resize(numSeq);
+	newContig.name.resize(numSeq);
+	newContig.setNameIndex();
+}
+
+void PairedDBG::filterAnchorHomo(platanus::Contig &contig, platanus::Contig &newContig)
+{
+	const double MAX_HOMO_COVERAGE = HOMO_COVERAGE_THRESHOLD_FACTOR * this->heteroCoverage;
+	const double MIN_HOMO_COVERAGE = HOMO_COVERAGE_THRESHOLD_FACTOR_LOW * this->heteroCoverage;
+	
+	newContig.clear();
+	newContig.numSeq = contig.numSeq;
+	newContig.seq.resize(contig.numSeq);
+	newContig.coverage.resize(contig.numSeq);
+	newContig.name.resize(contig.numSeq);
+
+	long numSeq = 0;
+	for (long i = 0; i < contig.numSeq; ++i) {
+		if (contig.coverage[i] <= MAX_HOMO_COVERAGE && contig.coverage[i] >= MIN_HOMO_COVERAGE) {
+			newContig.seq[numSeq] = contig.seq[i];
+			newContig.coverage[numSeq] = contig.coverage[i];
+			newContig.name[numSeq] = contig.name[i];
+			++numSeq;
 		}
 	}
 
@@ -7592,29 +7627,46 @@ void PairedDBG::reduceAlignmentsGreedy(vector<platanus::LongReadAlignment> &alig
 	alignments.resize(numRetained);
 }
 
-void PairedDBG::reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const platanus::Contig &rawContig, const platanus::Contig &anchorContig, const vector<platanus::Region> &anchorMap)
+void PairedDBG::reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const platanus::Contig &rawContig, const platanus::Contig &anchorBubble, const platanus::Contig &anchorHomo, const vector<platanus::Region> &anchorBubbleMap, const vector<platanus::Region> &anchorHomoMap)
 {
 	this->contigMaxK = rawGraph.contigMaxK;
-	this->numContig = anchorContig.numSeq;
-	this->contig = anchorContig.seq;
-	this->coverage = anchorContig.coverage;
-	this->contigName = anchorContig.name;
 	this->heteroCoverage = rawGraph.heteroCoverage;
-
     this->numNode = rawContig.numSeq;
     this->node.resize(this->numNode);
-	for (long i = 0; i < anchorMap.size(); ++i) {
-		if (anchorMap[i].id != 0) {
-			this->node[id2Index(anchorMap[i].id)].contig.emplace_back(
-				sign(anchorMap[i].id) * (i + 1),
-				anchorMap[i].start,
-				anchorMap[i].end
+
+	this->numContig = anchorBubble.numSeq;
+	this->contig = anchorBubble.seq;
+	this->coverage = anchorBubble.coverage;
+	this->contigName = anchorBubble.name;
+	for (long i = 0; i < anchorBubbleMap.size(); ++i) {
+		if (anchorBubbleMap[i].id != 0) {
+			this->node[id2Index(anchorBubbleMap[i].id)].contig.emplace_back(
+				sign(anchorBubbleMap[i].id) * (i + 1),
+				anchorBubbleMap[i].start,
+				anchorBubbleMap[i].end
 			);
 		}
 	}
 
-	long curNumContig = anchorContig.numSeq;
+	this->numContig += 2 * anchorHomo.numSeq;
+	this->contig.resize(this->contig.size() + 2 * anchorHomo.numSeq);
+	this->coverage.resize(this->coverage.size() + 2 * anchorHomo.coverage.size());
+	this->contigName.resize(this->contigName.size() + 2 * anchorHomo.name.size());
+	for (long i = 0; i < anchorHomoMap.size(); ++i) {
+		if (anchorHomoMap[i].id != 0) {
+			this->node[id2Index(anchorHomoMap[i].id)].contig.emplace_back(
+				sign(anchorHomoMap[i].id) * (i + 1),
+				anchorHomoMap[i].start,
+				anchorHomoMap[i].end
+			);
+		}
+		long idx = i / 2;
+		this->contig[anchorBubble.numSeq + i]  = anchorHomo.seq[idx];
+		this->coverage[anchorBubble.numSeq + i] = anchorHomo.coverage[idx];
+		this->contigName[anchorBubble.numSeq + i] = anchorHomo.name[idx];
+	}
 
+	long curNumContig = this->numContig;
 	long k = this->contigMaxK;
 	for (long i = 0; i < rawContig.numSeq; ++i) {
 		GraphNode &curNode = this->node[i];
@@ -7696,9 +7748,13 @@ void PairedDBG::reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const p
 
     this->contigBubbleInfo.clear();
     this->contigBubbleInfo.resize(this->contig.size());
-	for (long i = 0; i < anchorContig.numSeq; i += 2) {
+	for (long i = 0; i < anchorBubble.numSeq; i += 2) {
 		this->contigBubbleInfo[i].oppositeContigID.fill(i + 2);
 		this->contigBubbleInfo[i + 1].oppositeContigID.fill(i + 1);
+	}
+	for (long i = 0; i < 2 * anchorHomo.numSeq; i += 2) {
+		this->contigBubbleInfo[anchorBubble.numSeq + i].oppositeContigID.fill(anchorBubble.numSeq + i + 2);
+		this->contigBubbleInfo[anchorBubble.numSeq + i + 1].oppositeContigID.fill(anchorBubble.numSeq + i + 1);
 	}
 
     this->numBubble.clear();

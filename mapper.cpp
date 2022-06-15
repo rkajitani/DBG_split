@@ -1018,6 +1018,76 @@ void Mapper::mapAnchorBubbleMT(platanus::Contig &anchorContig, vector<platanus::
 }
 
 
+void Mapper::mapAnchorHomoMT(platanus::Contig &anchorContig, vector<platanus::Region> &anchorMap, const long numThread)
+{
+	const double MIN_IDENTITY = 100.0;
+
+    long totalPair = 0;
+    long numMappedSameContig = 0;
+    long numMappedDiffContig = 0;
+
+    cerr << "mapping homo-anchors ..." << endl;
+
+    omp_set_num_threads(numThread);
+	anchorMap.resize(2 * anchorContig.numSeq);
+
+    # pragma omp parallel for  schedule(static, 1) reduction(+: totalPair, numMappedSameContig, numMappedDiffContig)
+    for (long i = 0; i < numThread; ++i) {
+		vector<platanus::Position> positionBuffer;
+		vector<platanus::Position> mapPosition;
+
+		for (long j = i; j < anchorContig.numSeq; j += numThread) {
+            ++totalPair;
+			platanus::SEQ &anchor = anchorContig.seq[j];
+
+            if (anchor.length < seedLength)
+				continue;
+
+            this->mapReadUngapAlignmentMulti(anchor, MIN_IDENTITY, positionBuffer, mapPosition);
+            if (mapPosition.size() != 2)
+				continue;
+
+            if (abs(mapPosition[0].id) == abs(mapPosition[1].id)) {
+                ++numMappedSameContig;
+				continue;
+			}
+
+			long idx1 = 2 * j;
+			long idx2 = 2 * j + 1;
+
+			anchorMap[idx1].id = mapPosition[0].id;
+			anchorMap[idx2].value = j;
+			if (mapPosition[0].id > 0) {
+				anchorMap[idx1].start = mapPosition[0].offset;
+				anchorMap[idx1].end = mapPosition[0].offset + anchor.length;
+			}
+			else {
+				anchorMap[idx1].start = mapPosition[0].offset - anchor.length + 1;
+				anchorMap[idx1].end = mapPosition[0].offset + 1;
+			}
+
+			anchorMap[idx2].id = mapPosition[1].id;
+			anchorMap[idx1].value = j;
+			if (mapPosition[1].id > 0) {
+				anchorMap[idx2].start = mapPosition[1].offset;
+				anchorMap[idx2].end = mapPosition[1].offset + anchor.length;
+			}
+			else {
+				anchorMap[idx2].start = mapPosition[1].offset - anchor.length + 1;
+				anchorMap[idx2].end = mapPosition[1].offset + 1;
+			}
+
+			++numMappedDiffContig;
+        }
+    }
+
+    cerr << "TOTAL_PAIR = " << totalPair << endl;
+    cerr << "MAPPED_PAIR = " << numMappedSameContig + numMappedDiffContig << " (" << static_cast<double>(numMappedSameContig + numMappedDiffContig) / totalPair << ")" << endl;
+    cerr << "MAPPED_IN_DIFFERENT_CONTIGS = " << numMappedDiffContig << " (" << static_cast<double>(numMappedDiffContig) / totalPair << ")" << endl;
+    cerr << "MAPPED_IN_SAME_CONTIG = " << numMappedSameContig << " (" << static_cast<double>(numMappedSameContig) / totalPair << ")" << endl;
+}
+
+
 void Mapper::mapTagPairMT(vector<SeqLib> &library, const long numThread)
 {
     long totalRead = 0;

@@ -305,9 +305,10 @@ public:
 	void dumpLongestNodeCoverage(std::vector<std::vector<unsigned> >& coverage, const long numOutputNode, std::string &outputFilename);
 	void divideNodeBasedOnCoverage(const std::vector<std::vector<unsigned> >& physicalCoverage, const std::vector<std::vector<unsigned> >& diffCoverage, const bool bubbleFlag, const long numThread);
 	void loadLongReadLink(const long minAlignmentLength, const double minCoverage, const double minIdentity, const long tolerenceLength, const long numThread);
-	void calculateHeteroCoverageContig(const platanus::Contig &contig);
-	void filterAnchorContig(platanus::Contig &contig, platanus::Contig &newContig);
-	void reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const platanus::Contig &rawContig, const platanus::Contig &anchorContig, const std::vector<platanus::Region> &anchorMap);
+	void calculateHeteroCoverageContig(const platanus::Contig &contig, const bool homoFlag = false);
+	void filterAnchorBubble(platanus::Contig &contig, platanus::Contig &newContig);
+	void filterAnchorHomo(platanus::Contig &contig, platanus::Contig &newContig);
+	void reconstructAnchorDividedGraph(const PairedDBG &rawGraph, const platanus::Contig &rawContig, const platanus::Contig &anchorBubble, const platanus::Contig &anchorHomo, const std::vector<platanus::Region> &anchorBubbleMap, const std::vector<platanus::Region> &anchorHomoMap);
 
 	double getHeteroCoverage() { return heteroCoverage; } 
 	double getAverageCoverage() { return averageCoverage; } 
@@ -328,6 +329,8 @@ public:
     static const double HETERO_COVERAGE_THRESHOLD_FACTOR;
     static const double HETERO_COVERAGE_THRESHOLD_FACTOR_LOW;
     static const double HETERO_FORK_COVERAGE_THRESHOLD_FACTOR;
+    static const double HOMO_COVERAGE_THRESHOLD_FACTOR;
+    static const double HOMO_COVERAGE_THRESHOLD_FACTOR_LOW;
 	static const double CROSS_LINK_RATE_THRESHOLD;
 	static const double CROSS_SCORE_RATE_THRESHOLD;
 	static const double MIN_BUBBLE_COUNT_FACTOR;
