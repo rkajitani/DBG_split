@@ -6727,10 +6727,12 @@ void PairedDBG::markRedundantResultSeq(const long numThread)
 
 	for (unsigned long seqIndex = 0; seqIndex < resultSeq.size(); ++seqIndex) {
 		auto mapItr = prefixToSeqIndex.find(resultSeq[seqIndex].seq.substr(0, prefixLength));
-		if (mapItr == prefixToSeqIndex.end())
+		if (mapItr == prefixToSeqIndex.end()) {
 			prefixToSeqIndex[resultSeq[seqIndex].seq.substr(0, prefixLength)] = std::vector<long>(1, seqIndex);
-		else
+		}
+		else {
 		 	mapItr->second.push_back(seqIndex);
+		}
 	}
 
     omp_set_num_threads(numThread);
@@ -6781,7 +6783,7 @@ void PairedDBG::markRedundantResultSeq(const long numThread)
 
 	for (unsigned threadID = 0; threadID < numThread; ++threadID) {
 		for (unsigned long seqIndex = 0; seqIndex < resultSeq.size(); ++seqIndex)
-			if (resultSeq[seqIndex].redundantFlag == false && redundantFlag[threadID][seqIndex]) 
+			if (resultSeq[seqIndex].redundantFlag == false && redundantFlag[threadID][seqIndex])
 				resultSeq[seqIndex].redundantFlag = true;
 	}
 }
