@@ -2588,7 +2588,7 @@ void PairedDBG::outputResultSeqWithBubble(const string filePrefix, const string 
 		}
 
 		long altNodeIndex = id2Index(node[nodeIndex].oppositeBubbleNodeID);
-		if (resultSeq[nodeIndex].redundantFlag && resultSeq[altNodeIndex].redundantFlag)
+		if (resultSeq[nodeIndex].redundantFlag || resultSeq[altNodeIndex].redundantFlag)
 			continue;
 
 		if (node[nodeIndex].oppositeBubbleNodeID < 0)
@@ -2609,10 +2609,13 @@ void PairedDBG::outputResultSeqWithBubble(const string filePrefix, const string 
 		printBinSeqConstLineLength(resultSeq[altNodeIndex].seq, secondaryBubbleOut);
 
 		pairOut << primaryBubbleSS.str() << '\t' << secondaryBubbleSS.str() << '\n';
+
+		unprintFlag[nodeIndex] = true;
+		unprintFlag[altNodeIndex] = true;
 	}
 
     for (long nodeIndex = 0; nodeIndex < numNode; ++nodeIndex) {
-		if (unprintFlag[nodeIndex] || pairFlag[nodeIndex] || resultSeq[nodeIndex].redundantFlag)
+		if (unprintFlag[nodeIndex] || resultSeq[nodeIndex].redundantFlag)
 			continue;
 
         ++numSeq;
@@ -3578,10 +3581,11 @@ void PairedDBG::setOppositeBubbleNodeIDForEachNode(const long numThread)
 		setOppositeBubbleNodeID(oppositeBubbleNodeID, this->node[nodeIndex].contig);
 
 		long oppositeNodeID = maxLengthContigID(oppositeBubbleNodeID, 0, oppositeBubbleNodeID.size());
-//		if (oppositeNodeID == 0 || calcNodeCoverage(this->node[nodeIndex]) > COVERAGE_THRESHOLD || calcNodeCoverage(this->node[id2Index(oppositeNodeID)]) > COVERAGE_THRESHOLD)
-		if (oppositeNodeID == 0 ||
-			calcNodeCoverage(this->node[nodeIndex]) > this->heteroCoverage * std::max(1.25, HETERO_COVERAGE_THRESHOLD_FACTOR - (0.25 * 0.00001 * this->node[nodeIndex].length)) ||
-			calcNodeCoverage(this->node[id2Index(oppositeNodeID)]) > this->heteroCoverage * std::max(1.25, HETERO_COVERAGE_THRESHOLD_FACTOR - (0.25 * 0.00001 * this->node[id2Index(oppositeNodeID)].length)))
+//		if (oppositeNodeID == 0 ||
+//			calcNodeCoverage(this->node[nodeIndex]) > this->heteroCoverage * std::max(1.25, HETERO_COVERAGE_THRESHOLD_FACTOR - (0.25 * 0.00001 * this->node[nodeIndex].length)) ||
+//			calcNodeCoverage(this->node[id2Index(oppositeNodeID)]) > this->heteroCoverage * std::max(1.25, HETERO_COVERAGE_THRESHOLD_FACTOR - (0.25 * 0.00001 * this->node[id2Index(oppositeNodeID)].length)))
+//			continue;
+		if (oppositeNodeID == 0)
 			continue;
 
 		if (id2Index(oppositeNodeID) == nodeIndex)
@@ -3613,12 +3617,10 @@ void PairedDBG::setOppositeBubbleNodeIDAndStateForEachNode()
 		setOppositeBubbleNodeID(oppositeBubbleNodeID, this->node[nodeIndex].contig);
 
 		long oppositeNodeID = maxLengthContigID(oppositeBubbleNodeID, 0, oppositeBubbleNodeID.size());
-		if (oppositeNodeID == 0 || calcNodeCoverage(this->node[nodeIndex]) > COVERAGE_THRESHOLD || calcNodeCoverage(this->node[id2Index(oppositeNodeID)]) > COVERAGE_THRESHOLD)
-			continue;
-//		if (oppositeNodeID == 0 ||
-//			calcNodeCoverage(this->node[nodeIndex]) > this->heteroCoverage * std::max(1.25, HETERO_COVERAGE_THRESHOLD_FACTOR - (0.25 * 0.00001 * this->node[nodeIndex].length)) ||
-//			calcNodeCoverage(this->node[id2Index(oppositeNodeID)]) > this->heteroCoverage * std::max(1.25, HETERO_COVERAGE_THRESHOLD_FACTOR - (0.25 * 0.00001 * this->node[id2Index(oppositeNodeID)].length)))
+//		if (oppositeNodeID == 0 || calcNodeCoverage(this->node[nodeIndex]) > COVERAGE_THRESHOLD || calcNodeCoverage(this->node[id2Index(oppositeNodeID)]) > COVERAGE_THRESHOLD)
 //			continue;
+		if (oppositeNodeID == 0)
+			continue;
 
 		long oppositeNodeIndex = id2Index(oppositeNodeID);
 		if (oppositeNodeIndex == nodeIndex)
