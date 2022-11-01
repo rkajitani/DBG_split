@@ -62,7 +62,7 @@ public:
     unsigned long long findMedian(const std::vector<unsigned long long> &vec) const;
     void divideAndPrintContig(const std::string &filename);
     unsigned long long calcAverageCoverage(const unsigned long long contigID, const unsigned long long start, const unsigned long long end);
-	void printContigWithMedian(const std::string &filename);
+	void printContigWithMedian(const std::string &filename, const std::string &prefix);
 
 
     bool checkFileEnough(void)
