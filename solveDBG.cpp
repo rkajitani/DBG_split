@@ -60,7 +60,8 @@ SolveDBG::SolveDBG()
     optionSingleArgs["-i"] = "0.8";
     optionSingleArgs["-unlink_list"] = "";
     optionMultiArgs["-c"] = vector<string>();
-    optionMultiArgs["-anchor"] = vector<string>();
+    optionMultiArgs["-anchor_bubble"] = vector<string>();
+    optionMultiArgs["-anchor_homo"] = vector<string>();
     optionMultiArgs["-b"] = vector<string>();
     optionMultiArgs["-p"] = vector<string>();
     optionMultiArgs["-ont"] = vector<string>();
@@ -111,7 +112,8 @@ void SolveDBG::usage(void) const
               << "    -o STR                             : prefix of output file (default " << optionSingleArgs.at("-o") << ", length <= " << platanus::ConstParam::MAX_FILE_LEN << ")\n"
               << "    -c FILE1 [FILE2 ...]               : contig_file (fasta format)\n"
               << "    -b FILE1 [FILE2 ...]               : bubble_seq_file (fasta format)\n"
-              << "    -anchor FILE1 [FILE2 ...]          : anchor bubble_seq_file (fasta format)\n"
+              << "    -anchor_bubble FILE1 [FILE2 ...]   : anchor bubble_seq_file (fasta format)\n"
+              << "    -anchor_homo FILE1 [FILE2 ...]     : anchor homo_seq_file (fasta format)\n"
               << "    -ip{INT} PAIR1 [PAIR2 ...]         : lib_id inward_pair_file (reads in 1 file, fasta or fastq)\n"
               << "    -IP{INT} FWD1 REV1 [FWD2 REV2 ...] : lib_id inward_pair_files (reads in 2 files, fasta or fastq)\n"
               << "    -op{INT} PAIR1 [PAIR2 ...]         : lib_id outward_pair_file (reads in 1 file, fasta or fastq)\n"
@@ -207,7 +209,7 @@ void SolveDBG::initializeParameters(void)
     pairedDBG.setMaxFragmentLengthOfTag(atoi(optionSingleArgs["-L"].c_str()));
 
     unsigned numLibrary = 0;
-	if (optionMultiArgs["-anchor"].empty()) {
+	if (optionMultiArgs["-anchor_bubble"].empty() && optionMultiArgs["-anchor_homo"].empty()) {
 		sort(optionPairFile.begin(), optionPairFile.end());
 		numFilePerLibraryID.resize(optionPairFile.size());
 		libraryIDList.resize(optionPairFile.size());
@@ -236,7 +238,7 @@ void SolveDBG::exec(void)
 {
     initializeParameters();
 
-	if (!optionMultiArgs["-anchor"].empty()) {
+	if (!(optionMultiArgs["-anchor_bubble"].empty() && optionMultiArgs["-anchor_homo"].empty())) {
 		PairedDBG dividedDBG;
 		mapLibraryAndInitGraphAnchorMode(dividedDBG, numThread);
 		dividedDBG.divideNodeBasedOnBubblesIterative(true, numThread);
@@ -966,23 +968,32 @@ void SolveDBG::mapLibraryAndInitGraph(const int numThread)
 void SolveDBG::mapLibraryAndInitGraphAnchorMode(PairedDBG &dividedDBG, const int numThread)
 {
     platanus::Contig contig;
-    platanus::Contig anchorContig;
-	vector<platanus::Region> anchorMap;
+    platanus::Contig anchorBubble;
+    platanus::Contig anchorHomo;
+	vector<platanus::Region> anchorBubbleMap;
+	vector<platanus::Region> anchorHomoMap;
     std::unique_ptr<HeteroMapper> mapper(new HeteroMapper(seedLength, keyLength));
 
-    readLibraryAnchorMode(mapper, contig, anchorContig, numThread);
+    readLibraryAnchorMode(mapper, contig, anchorBubble, anchorHomo, numThread);
+	mapper->contigMap.setSeedLength(this->contigMaxK);
     cerr << "ANCHOR_CONTIG_AVERAGE_COVERAGE = " << averageCoverage << endl;
 
-	cerr << "[LIBRARY ANCHOR_BUBBLE]" << endl;
-	mapper->contigMap.setSeedLength(this->contigMaxK);
-	mapper->contigMap.mapAnchorBubbleMT(anchorContig, anchorMap, numThread);
+	if (!optionMultiArgs["-anchor_bubble"].empty()) {
+		cerr << "[LIBRARY ANCHOR_BUBBLE]" << endl;
+		mapper->contigMap.mapAnchorBubbleMT(anchorBubble, anchorBubbleMap, numThread);
+	}
+
+	if (!optionMultiArgs["-anchor_homo"].empty()) {
+		cerr << "[LIBRARY ANCHOR_HOMO]" << endl;
+		mapper->contigMap.mapAnchorHomoMT(anchorHomo, anchorHomoMap, numThread);
+	}
 
 	pairedDBG.initScaffolding(contig.coverage, mapper->contigMap, averageCoverage, bubbleThreshold);
 	pairedDBG.setContigName(contig.name);
     pairedDBG.setContigMaxK(this->contigMaxK);
     pairedDBG.setMinOverlap(this->contigMaxK - 1);
 
-	dividedDBG.reconstructAnchorDividedGraph(pairedDBG, contig, anchorContig, anchorMap);
+	dividedDBG.reconstructAnchorDividedGraph(pairedDBG, contig, anchorBubble, anchorHomo, anchorBubbleMap, anchorHomoMap);
 
     cerr << "destructing mapper objects..." << std::endl;
 }
@@ -1161,7 +1172,7 @@ void SolveDBG::readLibrary(std::unique_ptr<HeteroMapper> &mapper, platanus::Cont
 }
 
 
-void SolveDBG::readLibraryAnchorMode(std::unique_ptr<HeteroMapper> &mapper, platanus::Contig &contig, platanus::Contig &anchorContig, const int numThread)
+void SolveDBG::readLibraryAnchorMode(std::unique_ptr<HeteroMapper> &mapper, platanus::Contig &contig, platanus::Contig &anchorBubble, platanus::Contig &anchorHomo, const int numThread)
 {
     omp_set_num_threads(numThread);
 
@@ -1185,19 +1196,39 @@ void SolveDBG::readLibraryAnchorMode(std::unique_ptr<HeteroMapper> &mapper, plat
 
 		# pragma omp section
 		{
-			platanus::Contig rawContig;
+			if (!optionMultiArgs["-anchor_bubble"].empty()) {
+				platanus::Contig rawBubble;
+				for (unsigned i = 0; i < optionMultiArgs["-anchor_bubble"].size(); ++i)
+					rawBubble.readFastaCoverage(optionMultiArgs["-anchor_bubble"][i]);
 
-			for (unsigned i = 0; i < optionMultiArgs["-anchor"].size(); ++i)
-				rawContig.readFastaCoverage(optionMultiArgs["-anchor"][i]);
+				rawBubble.setNameIndex();
+				pairedDBG.calculateHeteroCoverageContig(rawBubble);
+				pairedDBG.filterAnchorBubble(rawBubble, anchorBubble);
+				rawBubble.clear();
 
-			rawContig.setNameIndex();
-			pairedDBG.calculateHeteroCoverageContig(rawContig);
-			pairedDBG.filterAnchorContig(rawContig, anchorContig);
-			rawContig.clear();
-			pairedDBG.calculateHeteroCoverageContig(anchorContig);
+				pairedDBG.calculateHeteroCoverageContig(anchorBubble);
+				this->contigMaxK = anchorBubble.getMaxKFromFastaHeader(optionMultiArgs["-anchor_bubble"][0]);
+				this->contigReadLength = anchorBubble.getReadLengthFromFastaHeader(optionMultiArgs["-anchor_bubble"][0]);
+			}
 
-			this->contigMaxK = anchorContig.getMaxKFromFastaHeader(optionMultiArgs["-anchor"][0]);
-			this->contigReadLength = anchorContig.getReadLengthFromFastaHeader(optionMultiArgs["-anchor"][0]);
+			if (!optionMultiArgs["-anchor_homo"].empty()) {
+				platanus::Contig rawHomo;
+				for (unsigned i = 0; i < optionMultiArgs["-anchor_homo"].size(); ++i)
+					rawHomo.readFastaCoverage(optionMultiArgs["-anchor_homo"][i]);
+
+				rawHomo.setNameIndex();
+				if (optionMultiArgs["-anchor_bubble"].empty()) {
+					pairedDBG.calculateHeteroCoverageContig(rawHomo, true);
+				}
+				pairedDBG.filterAnchorHomo(rawHomo, anchorHomo);
+				rawHomo.clear();
+
+				if (optionMultiArgs["-anchor_bubble"].empty()) {
+					pairedDBG.calculateHeteroCoverageContig(anchorHomo, true);
+					this->contigMaxK = anchorHomo.getMaxKFromFastaHeader(optionMultiArgs["-anchor_homo"][0]);
+					this->contigReadLength = anchorHomo.getReadLengthFromFastaHeader(optionMultiArgs["-anchor_homo"][0]);
+				}
+			}
 		}
 	}
 

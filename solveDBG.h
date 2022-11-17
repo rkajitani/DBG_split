@@ -130,7 +130,7 @@ public:
     virtual void exec(void);
     virtual void initializeParameters(void);
     virtual void readLibrary(std::unique_ptr<HeteroMapper> &mapper, platanus::Contig &contig, const int numThread);
-	void readLibraryAnchorMode(std::unique_ptr<HeteroMapper> &mapper, platanus::Contig &contig, platanus::Contig &anchorContig, const int numThread);
+	void readLibraryAnchorMode(std::unique_ptr<HeteroMapper> &mapper, platanus::Contig &contig, platanus::Contig &anchorBubble, platanus::Contig &anchorHomo, const int numThread);
     virtual void mapLibraryAndInitGraph(const int numThread);
 	void mapLibraryAndInitGraphAnchorMode(PairedDBG &dividedDBG, const int numThread);
     virtual void outputAndAfterTreatment(void);

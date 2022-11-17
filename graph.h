@@ -258,6 +258,7 @@ public:
     void makeInitialBruijnGraph(Counter<KMER> &counter, FILE *sortedKeyFP);
     unsigned long long crushBubble(const double averageCoverage);
 	void saveBubbleAsContig(FILE *contigFP, const double coverageRatio);
+	void saveCrossCenterAsContig(FILE *contigFP, const double coverageRatio);
     unsigned long long cutBranch(const unsigned long long numThread=1);
     void concatinateNodes(void);
     void printBubble(const std::string &outputFilename, const double occurrenceRatio) const;
@@ -811,6 +812,80 @@ void BruijnGraph<KMER>::saveBubbleAsContig(FILE *contigFP, const double coverage
     }
 }
 
+
+template <typename KMER>
+void BruijnGraph<KMER>::saveCrossCenterAsContig(FILE *contigFP, const double coverageRatio)
+{
+	const double MAX_HOMO_RATIO = 0.75;
+    Straight *center;
+    Straight *outer;
+	Junction *junction;
+    KMER key(kmerLength);
+	bool invalidFlag;
+    const unsigned long mask = kmerLength >= 32 ? ~static_cast<unsigned long long>(0) : ~(~static_cast<unsigned long long>(0) << (2 * kmerLength));
+
+	if (contigFP == NULL)
+		contigFP = platanus::makeTemporaryFile();
+
+	for (auto it = leftStraightTable.begin(); it != leftStraightTable.end(); ++it) {
+		center = &(it->second);
+		if (center->coverage == UINT16_MAX || !((center->out >> 4) && (center->out & 0xf)))
+			continue;
+
+		long coverageThreshold = MAX_HOMO_RATIO * center->coverage + 0.5;
+
+		key.forward = it->first;
+		key.forward >>= 2;
+		key.setForward(kmerLength - 1, platanus::Flag2Base(center->out >> 4));
+		junction = findJunction(key.forward);
+		if (junction == NULL || platanus::FlagCount(junction->out & 0x0f) != 1 || platanus::FlagCount(junction->out >> 4) != 2)
+			continue;
+		invalidFlag = false;
+		key.forward >>= 2;
+		for (unsigned char base = 0; base < 4; ++base) {
+			if(!(junction->out & (1 << (base + 4))))
+				continue;
+			key.setForward(kmerLength - 1, base);
+			outer = findStraightTail(key.forward);
+			if (outer == center || outer == NULL || outer->coverage > coverageThreshold) {
+				invalidFlag = true;
+				break;
+			}
+		}
+		if (invalidFlag)
+			continue;
+
+		for (unsigned j = 1; j < kmerLength; ++j)
+			key.setForward(j, center->get(j - 1));
+		key.setForward(0, platanus::Flag2Base(center->out & 0xf));
+		junction = findJunction(key.forward);
+		if (junction == NULL || platanus::FlagCount(junction->out >> 4) != 1 || platanus::FlagCount(junction->out & 0x0f) != 2)
+			continue;
+		invalidFlag = false;
+		key.forward <<= 2;
+		key.maskForward(mask);
+		for (unsigned char base = 0; base < 4; ++base) {
+			if (!(junction->out & (1 << base)))
+				continue;
+			key.setForward(0, base);
+			outer = findStraightHead(key.forward);
+			if (outer == center || outer == NULL || outer->coverage > coverageThreshold) {
+				invalidFlag = true;
+				break;
+			}
+		}
+		if (invalidFlag)
+			continue;
+
+		unsigned long long length = center->length + kmerLength - 1;
+		unsigned short coverage = static_cast<unsigned short>(center->coverage * coverageRatio + 0.5);
+		binstr_t seq(length);
+		seq.convertFromVector(center->seq);
+		fwrite(&length, sizeof(unsigned long long), 1, contigFP);
+		fwrite(&(coverage), sizeof(unsigned short), 1, contigFP);
+		seq.writeTemporaryFile(contigFP);
+    }
+}
 
 
 //////////////////////////////////////////////////////////////////////////////////////

@@ -10,6 +10,7 @@ ContigDivider::ContigDivider(): contig(), readLength(100), contigMaxK(100), cove
 {
     optionSingleArgs["-o"] = "out";
     optionSingleArgs["-k"] = "";
+    optionSingleArgs["-s"] = "seq";
     optionSingleArgs["-r"] = "1.5";
     optionMultiArgs["-c"] = std::vector<std::string>();
     optionSingleArgs["-tmp"] = ".";
@@ -27,6 +28,7 @@ void ContigDivider::usage(void) const
               << "    -o STR               : prefix of output file (default " << optionSingleArgs.at("-o") << ", length <= " << platanus::ConstParam::MAX_FILE_LEN << ")\n"
               << "    -c FILE1 [FILE2 ...] : contig or scaffold_file (fasta format)\n"
               << "    -k STR               : k-mer-occurrence file (binary format)\n"
+              << "    -s STR               : prefix of output sequences (default " << optionSingleArgs.at("-s") << ")\n"
 //              << "    -r FLOAT             : coverage ratio threshold (default " << optionSingleArgs.at("-r") << ")\n"
 //              << "    -recalc_cov          : just re-calculate coverage depth and not divide sequences\n"
               << "    -tmp DIR             : directory for temporary files (default " << optionSingleArgs.at("-tmp") << ")\n\n\n"
@@ -103,7 +105,7 @@ void ContigDivider::exec(void)
 	}
 
 //    this->divideAndPrintContig(outputFilename);
-    this->printContigWithMedian(outputFilename);
+    this->printContigWithMedian(outputFilename, optionSingleArgs["-s"]);
 
 
 
@@ -251,7 +253,7 @@ void ContigDivider::divideAndPrintContig(const std::string &filename)
 }
 
 
-void ContigDivider::printContigWithMedian(const std::string &filename)
+void ContigDivider::printContigWithMedian(const std::string &filename, const std::string &prefix)
 {
     unsigned long long minLength = this->contigMaxK;
     unsigned long long seqID = 1;
@@ -264,7 +266,7 @@ void ContigDivider::printContigWithMedian(const std::string &filename)
         std::vector<unsigned long long> tmpArray = contigItself->getOccurrenceArray(i);
         const unsigned long long median = this->findMedian(tmpArray);
 
-		ofs << ">seq" << seqID << "_len" << this->contig.seq[i].length << "_cov" << median << "_read" << this->readLength << "_maxK" << this->contigMaxK << "\n";
+		ofs << '>' << prefix << seqID << "_len" << this->contig.seq[i].length << "_cov" << median << "_read" << this->readLength << "_maxK" << this->contigMaxK << "\n";
 		unsigned long long j = 0;
 		for (unsigned long long pos = 0; pos < this->contig.seq[i].length; ++pos, ++j) {
 			ofs.put(platanus::Bin2Char(this->contig.seq[i].base[pos]));

@@ -145,6 +145,7 @@ public:
 	void mapPairToCalculateCoverage(std::vector<SeqLib> &library, const long numThread);
 	void mapLongReadAndSaveReadLink(std::vector<SeqLib> &library, const long minContigLength, const long numThread);
 	void mapAnchorBubbleMT(platanus::Contig &anchorContig, std::vector<platanus::Region> &anchorMap, const long numThread);
+	void mapAnchorHomoMT(platanus::Contig &anchorContig, std::vector<platanus::Region> &anchorMap, const long numThread);
 };
 
 
